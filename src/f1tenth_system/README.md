@@ -12,7 +12,7 @@ git submodule update --init --recursive --remote
 This will ensure you have all the submodules cloned and updated to the configured branches.
 
 ## Deadman's switch
-On Logitech F-710 joysticks, the LB button is the deadman's switch for teleop, and the RB button is the deadman's switch for navigation. You can also remap buttons. See how on the readthedocs documentation.
+On PS5 Controller, the L1 button is the deadman's switch for teleop, and the R1 button is the deadman's switch for navigation. You can also remap buttons. See how on the readthedocs documentation.
 
 ## Sick Lidar
 
