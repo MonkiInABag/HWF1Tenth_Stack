@@ -28,6 +28,7 @@ from launch.actions import DeclareLaunchArgument
 from launch.actions import IncludeLaunchDescription
 from launch_xml.launch_description_sources import XMLLaunchDescriptionSource
 from ament_index_python.packages import get_package_share_directory
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 import os
 
 def generate_launch_description():
@@ -52,6 +53,13 @@ def generate_launch_description():
         'mux.yaml'
     )
 
+    global_planner_launch = os.path.join(
+        get_package_share_directory('global_planner'),
+        'launch',
+        'global_planner_launch.py'
+    )
+
+
     joy_la = DeclareLaunchArgument(
         'joy_config',
         default_value=joy_teleop_config,
@@ -70,6 +78,11 @@ def generate_launch_description():
         description='Descriptions for ackermann mux configs')
 
     ld = LaunchDescription([joy_la, vesc_la, sensors_la, mux_la])
+
+    global_planner_include = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(global_planner_launch)
+    )
+
 
     joy_node = Node(
         package='joy',
@@ -123,5 +136,6 @@ def generate_launch_description():
     ld.add_action(vesc_driver_node)
     ld.add_action(ackermann_mux_node)
     ld.add_action(static_tf_node)
+    ld.add_action(global_planner_include)
 
     return ld

@@ -1,0 +1,5 @@
+global_planner_node:
+  ros__parameters:
+    default_speed: 0.0
+    max_steering_angle: 0.4
+    
