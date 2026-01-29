@@ -32,11 +32,10 @@ private:
   {
     if (!odom_ || !scan_) return;        // wait until we have both
 
-    // --- YOUR PLANNER GOES HERE ---
     auto cmd = ackermann_msgs::msg::AckermannDriveStamped();
     cmd.header.stamp = now();
     cmd.drive.steering_angle = 0.0;
-    cmd.drive.speed = 0.0;              // safe default
+    cmd.drive.speed = 0.0;             
     pub_->publish(cmd);
   }
 
