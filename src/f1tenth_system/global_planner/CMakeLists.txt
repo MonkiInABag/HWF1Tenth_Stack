@@ -11,6 +11,8 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(ackermann_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -24,13 +26,22 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-add_executable(planner_node src/planner_node.cpp)
+add_executable(planner_node
+  src/planner_node.cpp
+  src/tta_planner.cpp
+)
+
+target_include_directories(planner_node PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
 
 ament_target_dependencies(planner_node
   rclcpp
   sensor_msgs
   nav_msgs
   ackermann_msgs
+  geometry_msgs
 )
 
 install(TARGETS
@@ -41,5 +52,10 @@ install(TARGETS
 install(DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME}
 )
+
+install(DIRECTORY include/
+  DESTINATION include
+)
+
 
 ament_package()
