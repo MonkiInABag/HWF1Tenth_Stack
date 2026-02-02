@@ -1,41 +1,69 @@
-#include <memory> //for message handling
+#include <memory>
+#include "global_planner/tta_planner.hpp"
+#include "rclcpp/rclcpp.hpp"
+#include "sensor_msgs/msg/laser_scan.hpp"
+#include "nav_msgs/msg/odometry.hpp"
+#include "ackermann_msgs/msg/ackermann_drive_stamped.hpp"
 
-#include "rclcpp/rclcpp.hpp" //core ROS2 Api
-#include "sensor_msgs/msg/laser_scan.hpp" //what /scan publishes
-#include "nav_msgs/msg/odometry.hpp" //what /odom publishes
-#include "ackermann_msgs/msg/ackermann_drive_stamped.hpp" //what we publish to /drive
-
-class GlobalPlannerNode : public rclcpp::Node 
+class GlobalPlannerNode : public rclcpp::Node
 {
 public:
-  GlobalPlannerNode() : Node("global_planner_node") 
+  GlobalPlannerNode()
+  : Node("global_planner_node")
   {
-
     this->declare_parameter<double>("default_speed", 0.0);
     this->declare_parameter<double>("max_steering_angle", 0.4);
 
-   
     default_speed_ = this->get_parameter("default_speed").as_double();
     max_steering_angle_ = this->get_parameter("max_steering_angle").as_double();
 
     odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
-      "/odom", 10, [this](nav_msgs::msg::Odometry::SharedPtr m){ odom_ = m; step(); });
+      "/odom", 10,
+      [this](nav_msgs::msg::Odometry::SharedPtr m) {odom_ = m; step();}
+    );
 
     scan_sub_ = create_subscription<sensor_msgs::msg::LaserScan>(
-      "/scan", 10, [this](sensor_msgs::msg::LaserScan::SharedPtr m){ scan_ = m; step(); });
+      "/scan", 10,
+      [this](sensor_msgs::msg::LaserScan::SharedPtr m) {scan_ = m; step();}
+    );
 
-    pub_ = create_publisher<ackermann_msgs::msg::AckermannDriveStamped>("/drive", 10);
+    pub_ =
+      create_publisher<ackermann_msgs::msg::AckermannDriveStamped>("/drive", 10);
   }
 
 private:
-  void step() 
+  void step()
   {
-    if (!odom_ || !scan_) return;        // wait until we have both
+    if (!odom_ || !scan_) {
+      return;
+    }
+    std::vector<BoundaryPoint> left = {
+      {0.0, 0.0},
+      {0.0, 2.0},
+      {0.0, 4.0}
+    };
+
+    std::vector<BoundaryPoint> right = {
+      {2.0, 0.0},
+      {2.0, 2.0},
+      {2.0, 4.0}
+    };
+
+    std::vector<BoundaryPoint> centerline;
+
+    if (planner_.computeCenterline(left, right, centerline)) {
+      RCLCPP_INFO(
+        get_logger(),
+        "Center[0] = (%.2f, %.2f)",
+        centerline[0].x,
+        centerline[0].y
+      );
+    }
 
     auto cmd = ackermann_msgs::msg::AckermannDriveStamped();
     cmd.header.stamp = now();
     cmd.drive.steering_angle = 0.0;
-    cmd.drive.speed = 0.0;             
+    cmd.drive.speed = 0.0;
     pub_->publish(cmd);
   }
 
@@ -46,12 +74,14 @@ private:
   nav_msgs::msg::Odometry::SharedPtr odom_;
   sensor_msgs::msg::LaserScan::SharedPtr scan_;
 
+  TTAPlanner planner_;
+
   double default_speed_{0.0};
   double max_steering_angle_{0.4};
-
 };
 
-int main(int argc, char **argv) {
+int main(int argc, char ** argv)
+{
   rclcpp::init(argc, argv);
   rclcpp::spin(std::make_shared<GlobalPlannerNode>());
   rclcpp::shutdown();
