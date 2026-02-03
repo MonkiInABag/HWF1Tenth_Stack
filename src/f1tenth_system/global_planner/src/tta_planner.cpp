@@ -31,7 +31,9 @@ bool TTAPlanner::computeCenterline(
   return !centerline_out.empty();
 }
 
-/*
+/*   
+    Need to implement the following steps:
+    
     preprocessBounderies();
     left_chain = orderBoundary(left_boundary);
     right_chain = orderBoundary(right_boundary);
@@ -40,3 +42,4 @@ bool TTAPlanner::computeCenterline(
     ordered = oderLoop(centerline);
     centerline_out = smoot(ordered);
 */
+
