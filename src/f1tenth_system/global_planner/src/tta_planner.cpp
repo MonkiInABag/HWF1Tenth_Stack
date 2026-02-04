@@ -4,10 +4,11 @@
 #include <iostream>
 
 bool TTAPlanner::computeCenterline(
-  std::vector<BoundaryPoint> & left_boundary,
-  std::vector<BoundaryPoint> & right_boundary,
-  std::vector<BoundaryPoint> & centerline_out
+  const std::vector<BoundaryPoint>& left_boundary,
+  const std::vector<BoundaryPoint>& right_boundary,
+  std::vector<BoundaryPoint>& centerline_out
 )
+
 {
   centerline_out.clear();
 
@@ -42,4 +43,3 @@ bool TTAPlanner::computeCenterline(
     ordered = oderLoop(centerline);
     centerline_out = smoot(ordered);
 */
-

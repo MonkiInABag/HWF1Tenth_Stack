@@ -11,8 +11,8 @@ class TTAPlanner
 {
 public:
   bool computeCenterline(
-    std::vector<BoundaryPoint> & left_boundary,
-    std::vector<BoundaryPoint> & right_boundary,
+    const std::vector<BoundaryPoint> & left_boundary,
+    const std::vector<BoundaryPoint> & right_boundary,
     std::vector<BoundaryPoint> & centerline
   );
 };
