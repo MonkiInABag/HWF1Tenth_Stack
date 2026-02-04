@@ -16,7 +16,5 @@
     |   └── test_tta_planner.cpp
     ├── CMakeList.txt
     ├── package.xml
-    ├── README.md          This is the document you are currently reading
-
-          
+    └── README.md  <-You are here   
 
