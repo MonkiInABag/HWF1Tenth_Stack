@@ -41,7 +41,7 @@ public:
 
     drive_pub_ = create_publisher<ackermann_msgs::msg::AckermannDriveStamped>("/drive", 10);
 
-    
+
     //path publisher with latching
     rclcpp::QoS qos(rclcpp::KeepLast(1));
     qos.transient_local();   // latch last message
@@ -50,7 +50,7 @@ public:
     path_pub_ = create_publisher<nav_msgs::msg::Path>(
       "/global_centerline", qos
     );
-    
+
     //timer for step function
     timer_ = create_wall_timer(
       std::chrono::milliseconds(500),
@@ -86,8 +86,7 @@ private:
     std::vector<BoundaryPoint> centerline;
 
     //calls planner to compute centerline
-    if (planner_.computeCenterline(left, right, centerline)) 
-    {
+    if (planner_.computeCenterline(left, right, centerline)) {
       //convert centerline to path message and publish
       nav_msgs::msg::Path path_msg;
       path_msg.header.stamp = now();

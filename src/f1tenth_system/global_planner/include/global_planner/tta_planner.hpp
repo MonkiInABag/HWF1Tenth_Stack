@@ -18,7 +18,7 @@ public:
 
 
 private:
-  std::vector<BoundaryPoint> preprocessBounderies(
+  std::vector<BoundaryPoint> preprocessBoundaries(
     const std::vector<BoundaryPoint> & boundary
   );
 

@@ -3,65 +3,53 @@
 #include <algorithm>
 #include <iostream>
 
+#include <limits>
+
 bool TTAPlanner::computeCenterline(
-  const std::vector<BoundaryPoint>& left_boundary,
-  const std::vector<BoundaryPoint>& right_boundary,
-  std::vector<BoundaryPoint>& centerline_out
+  const std::vector<BoundaryPoint> & left_boundary,
+  const std::vector<BoundaryPoint> & right_boundary,
+  std::vector<BoundaryPoint> & centerline_out
 )
-
 {
-  centerline_out.clear();
+  auto L = preprocessBoundaries(left_boundary);
+  auto R = preprocessBoundaries(right_boundary);
 
-  size_t n = std::min(left_boundary.size(), right_boundary.size());
-  for (size_t i = 0; i < n; ++i) 
-  {
-    BoundaryPoint mid_point
-    {
-      (left_boundary[i].x + right_boundary[i].x) / 2.0,
-      (left_boundary[i].y + right_boundary[i].y) / 2.0
-    };
-    centerline_out.push_back(mid_point);
+  auto Lc = orderBoundary(L);
+  auto Rc = orderBoundary(R);
 
-    if (i < 5) 
-    {
-      std::cout << "i=" << i
-                << "\nleft=(" << left_boundary[i].x << "," << left_boundary[i].y << ")"
-                << "\nright=(" << right_boundary[i].x << "," << right_boundary[i].y << ")"
-                << "\nmid=(" << mid_point.x << "," << mid_point.y << ")"
-                << std::endl;
-    }
-  }
+  auto pairs = pairBoundaryPoints(Lc, Rc);
+  auto mid = computeMidpoints(pairs);
+
+  auto mid_ordered = orderBoundary(mid);
+  auto mid_smooth = smooth(mid_ordered);
+  centerline_out = orderLoop(mid_smooth);
 
   return !centerline_out.empty();
 }
 
-static double dist2(const BoundaryPoint& p1, const BoundaryPoint& p2) 
+static double dist2(const BoundaryPoint & p1, const BoundaryPoint & p2)
 {
   return (p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y);
 }
 
 
-std::vector<BoundaryPoint> TTAPlanner::preprocessBounderies(const std::vector<BoundaryPoint>& boundary) 
+std::vector<BoundaryPoint> TTAPlanner::preprocessBoundaries(
+  const std::vector<BoundaryPoint> & boundary)
 {
-  if(boundary.size() < 2) 
-  {
+  if (boundary.size() < 2) {
     std::cerr << "Boundary has too few points to preprocess." << std::endl;
     return boundary;
   }
-  std ::vector<BoundaryPoint> out;
+  std::vector<BoundaryPoint> out;
   out.reserve(boundary.size());
-  for (const auto& p : boundary) 
-  {
-    bool is_duplicate = false;
-    for (const auto& q: out)
-    {
-      if (p.x == q.x && p.y == q.y)
-      {
+  for (const auto & p : boundary) {
+    bool duplicate = false;
+    for (const auto & q: out) {
+      if (p.x == q.x && p.y == q.y) {
         duplicate = true;
         break;
       }
-      if(!duplicate) 
-      {
+      if (!duplicate) {
         out.push_back(p);
       }
     }
@@ -69,138 +57,112 @@ std::vector<BoundaryPoint> TTAPlanner::preprocessBounderies(const std::vector<Bo
   return out;
 }
 
-std::vector<BoundaryPoint> TTAPlanner::orderBoundary(const std::vector<BoundaryPoint>& boundary) 
+
+std::vector<BoundaryPoint> TTAPlanner::orderBoundary(
+  const std::vector<BoundaryPoint> & boundary)
 {
-  if (boudary.size() < 2) 
-  {
-    std::cerr << "Boundary has too few points to order." << std::endl;
-    return boundary;
-  }
+  if (boundary.size() < 2) {return boundary;}
+
   std::vector<BoundaryPoint> ordered;
   ordered.reserve(boundary.size());
 
   std::vector<bool> used(boundary.size(), false);
 
+  // Start at index 0 for baseline (later: start near vehicle pose)
   size_t current = 0;
   used[current] = true;
   ordered.push_back(boundary[current]);
 
-  for(size_t i = 1; i < boundary.size(); ++i) 
-  {
+  for (size_t k = 1; k < boundary.size(); ++k) {
     size_t best = static_cast<size_t>(-1);
-    double best_dist = std::numeric_limits<double>::max();
-    for(size_t j = 0; j < boundary.size(); ++j)
-    {
-      if (used[j]) 
-      {
-        continue;
-      }
-      double d2 = dist2(boundary[current], boundary[j]);
-      if (d2 < best_dist) 
-      {
+    double best_d2 = std::numeric_limits<double>::infinity();
+
+    for (size_t i = 0; i < boundary.size(); ++i) {
+      if (used[i]) {continue;}
+      double d2 = dist2(boundary[current], boundary[i]);
+      if (d2 < best_d2) {
         best_d2 = d2;
-        best = j;
+        best = i;
       }
     }
 
-    if(best == static_cast<size_t>(-1)) 
-    {
-      std::cerr << "Failed to find next point in orderBoundary." << std::endl;
-      break;
+    if (best == static_cast<size_t>(-1)) {
+      break;                                     // should not happen
     }
     used[best] = true;
     ordered.push_back(boundary[best]);
     current = best;
   }
+
   return ordered;
 }
- 
 
-/*
-pairBoundaryPoints(const std::vector<BoundaryPoint>& left_chain, const std::vector<BoundaryPoint>& right_chain) 
-{
-  size_t n = std::min(left_chain.size(), right_chain.size());
-  std::vector<std::pair<BoundaryPoint, BoundaryPoint>> pairs;
-  for (size_t i = 0; i < n; ++i) 
-  {
-    pairs.emplace_back(left_chain[i], right_chain[i]);
-  }
-  return pairs;
-  }
 
-  computeMidpoints(const std::vector<std::pair<BoundaryPoint, BoundaryPoint>>& pairs) 
-  {
-  std::vector<BoundaryPoint> midpoints;
-  for (const auto& pair : pairs) {
-    BoundaryPoint midpoint{
-      (pair.first.x + pair.second.x) / 2.0,
-      (pair.first.y + pair.second.y) / 2.0
-    };
-    midpoints.push_back(midpoint);
-  }
-  return midpoints;
-}
-*/
-
-std::vector<BoundaryPoint> TTAPlanner::pair<BoundaryPoint, BoundaryPoint> TTAPlanner::pairBoundaryPoints(
-  const std::vector<BoundaryPoint>& left_chain,
-  const std::vector<BoundaryPoint>& right_chain
-) 
+std::vector<std::pair<BoundaryPoint, BoundaryPoint>> TTAPlanner::pairBoundaryPoints(
+  const std::vector<BoundaryPoint> & left_chain,
+  const std::vector<BoundaryPoint> & right_chain)
 {
   std::vector<std::pair<BoundaryPoint, BoundaryPoint>> pairs;
-  i (left_chain.empty() || right_chain.empty()) 
-  {
+  if (left_chain.empty() || right_chain.empty()) {
     std::cerr << "One of the chains is empty in pairBoundaryPoints." << std::endl;
     return pairs;
   }
   pairs.reserve(left_chain.size());
   const double max_pair_dist2 = 25.0; //max distance squared to consider a valid pair
-}
 
+  for (const auto & left_pt : left_chain) {
+    size_t best = static_cast<size_t>(-1);
+    double best_d2 = std::numeric_limits<double>::infinity();
 
-
-
-orderLoop(const std::vector<BoundaryPoint>& centerline) 
-{
-  size_t centerlineSize = centerline.size();
-  if (centerlineSize < 2) {
-    std::cerr << "Centerline has too few points to order." << std::endl;
-    return centerline;
-  }
-  for(int i = 0; i < centerlineSize -1; ++i)
-  {
-    for(int j = i + 1; j < centerlineSize; ++j)
-    {
-      if (centerline[i].x > centerline[j].x || 
-          (centerline[i].x == centerline[j].x && centerline[i].y > centerline[j].y)) {
-        std::cerr << "Swapping points at index " << i << " and " << j << " for ordering." << std::endl;
-        std::swap(centerline[i], centerline[j]);
+    for (size_t j = 0; j < right_chain.size(); ++j) {
+      double d2 = dist2(left_pt, right_chain[j]);
+      if (d2 < best_d2) {
+        best_d2 = d2;
+        best = j;
       }
     }
-  } 
-  return centerline;
+
+    if (best != static_cast<size_t>(-1) && best_d2 <= max_pair_dist2) {
+      pairs.emplace_back(left_pt, right_chain[best]);
+    }
+  }
+  return pairs;
+
 }
 
-smooth(const std::vector<BoundaryPoint>& ordered) 
+std::vector<BoundaryPoint> TTAPlanner::orderLoop(const std::vector<BoundaryPoint> & centerline)
 {
-  std::vector<BoundaryPoint> ordered_centerline = ordered;
-  size_t n = ordered_centerline.size();
-  if (n < 3) 
-  {
-    std::cerr << "Not enough points to smooth." << std::endl;
-    return ordered_centerline;
-  }
-  for (size_t i = 1; i < n - 1; ++i) 
-  {
-    ordered_centerline[i].x = (ordered_centerline[i - 1].x + ordered_centerline[i].x + ordered_centerline[i + 1].x) / 3.0;
-    ordered_centerline[i].y = (ordered_centerline[i - 1].y + ordered_centerline[i].y + ordered_centerline[i + 1].y) / 3.0;
-  }
-  return ordered_centerline;
-}   
+  if (centerline.size() < 2) {return centerline;}
 
-/*   
+  std::vector<BoundaryPoint> out = centerline;
+  const double close_dist2 = 1.0; // distance squared to consider points as neighbors
+  if (dist2(out.front(), out.back()) < close_dist2) {
+    out.back() = out.front(); // close the loop
+  } else {
+    out.push_back(out.front()); // close the loop by adding the first point at the end
+  }
+  return out;
+}
+
+
+std::vector<BoundaryPoint> TTAPlanner::smooth(
+  const std::vector<BoundaryPoint> & ordered)
+{
+  if (ordered.size() < 3) {return ordered;}
+
+  std::vector<BoundaryPoint> out = ordered;
+
+  for (size_t i = 1; i + 1 < ordered.size(); ++i) {
+    out[i].x = (ordered[i - 1].x + ordered[i].x + ordered[i + 1].x) / 3.0;
+    out[i].y = (ordered[i - 1].y + ordered[i].y + ordered[i + 1].y) / 3.0;
+  }
+  return out;
+}
+
+
+/*
     Need to implement the following steps:
-    
+
     preprocessBounderies();
     left_chain = orderBoundary(left_boundary);
     right_chain = orderBoundary(right_boundary);
