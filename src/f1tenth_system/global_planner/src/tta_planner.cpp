@@ -21,8 +21,8 @@ bool TTAPlanner::computeCenterline(
   auto mid = computeMidpoints(pairs);
 
   auto mid_ordered = orderBoundary(mid);
-  //auto mid_filtered = removeLargeJumps(mid_ordered);
-  auto mid_smooth = smooth(mid_ordered);
+  auto mid_filtered = removeLargeJumps(mid_ordered);
+  auto mid_smooth = smooth(mid_filtered);
   centerline_out = orderLoop(mid_smooth);
 
   return !centerline_out.empty();
