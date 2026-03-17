@@ -46,4 +46,7 @@ private:
   std::vector<BoundaryPoint> removeLargeJumps(
   const std::vector<BoundaryPoint> & ordered_points);
 
+  std::vector<BoundaryPoint> resample(
+  const std::vector<BoundaryPoint> & pts,
+  double spacing);
 };

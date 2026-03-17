@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include <limits>
+#include <cmath>
 
 bool TTAPlanner::computeCenterline(
   const std::vector<BoundaryPoint> & left_boundary,
@@ -22,8 +23,9 @@ bool TTAPlanner::computeCenterline(
 
   auto mid_ordered = orderBoundary(mid);
   auto mid_filtered = removeLargeJumps(mid_ordered);
-  auto mid_smooth = smooth(mid_filtered);
-  centerline_out = orderLoop(mid_smooth);
+  //auto mid_smooth = smooth(mid_filtered);
+  auto sample = resample(mid_filtered, 0.125); // 12.5cm spacing
+  centerline_out = orderLoop(sample);
 
   return !centerline_out.empty();
 }
@@ -208,4 +210,36 @@ std::vector<BoundaryPoint> TTAPlanner::removeLargeJumps(
   }
 
   return filtered;
+}
+
+std::vector<BoundaryPoint> TTAPlanner::resample(
+  const std::vector<BoundaryPoint> & pts,
+  double spacing)
+{
+  std::vector<BoundaryPoint> out;
+
+  if (pts.size() < 2 || spacing <= 0.0) {
+    return pts;
+  }
+
+  out.push_back(pts.front());
+
+  double accum = 0.0;
+
+  for (size_t i = 1; i < pts.size(); ++i)
+  {
+    double dx = pts[i].x - pts[i - 1].x;
+    double dy = pts[i].y - pts[i - 1].y;
+    double dist = std::sqrt(dx * dx + dy * dy);
+
+    accum += dist;
+
+    if (accum >= spacing)
+    {
+      out.push_back(pts[i]);
+      accum = 0.0;
+    }
+  }
+
+  return out;
 }
