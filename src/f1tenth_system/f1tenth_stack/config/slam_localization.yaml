@@ -1,7 +1,8 @@
 slam_toolbox:
   ros__parameters:
     mode: localization
-    enable_interactive_mode: true          # keep true until it locks perfectly
+
+    enable_interactive_mode: true
     map_update_interval: 5.0
     minimum_travel_distance: 0.05
     minimum_travel_heading: 0.1
