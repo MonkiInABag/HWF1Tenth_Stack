@@ -5,6 +5,8 @@ import numpy as np
 from sensor_msgs.msg import LaserScan
 from ackermann_msgs.msg import AckermannDriveStamped
 
+# comment
+
 class GapFollower(Node):
     def __init__(self):
         super().__init__('gap_follower_node')
