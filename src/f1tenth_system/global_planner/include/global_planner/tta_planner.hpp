@@ -49,4 +49,7 @@ private:
   std::vector<BoundaryPoint> resample(
   const std::vector<BoundaryPoint> & pts,
   double spacing);
+
+  std::vector<BoundaryPoint> adaptiveResample(
+    const std::vector<BoundaryPoint>& pts);
 };
