@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include <limits>
+#include <cmath>
 
 bool TTAPlanner::computeCenterline(
   const std::vector<BoundaryPoint> & left_boundary,
@@ -22,8 +23,10 @@ bool TTAPlanner::computeCenterline(
 
   auto mid_ordered = orderBoundary(mid);
   auto mid_filtered = removeLargeJumps(mid_ordered);
-  auto mid_smooth = smooth(mid_filtered);
-  centerline_out = orderLoop(mid_smooth);
+  //auto mid_smooth = smooth(mid_filtered);
+  //auto sample = resample(mid_filtered, 0.125); // 12.5cm spacing
+  auto sample = adaptiveResample(mid_filtered);
+  centerline_out = orderLoop(sample);
 
   return !centerline_out.empty();
 }
@@ -208,4 +211,93 @@ std::vector<BoundaryPoint> TTAPlanner::removeLargeJumps(
   }
 
   return filtered;
+}
+
+std::vector<BoundaryPoint> TTAPlanner::resample(
+  const std::vector<BoundaryPoint> & pts,
+  double spacing)
+{
+  std::vector<BoundaryPoint> out;
+
+  if (pts.size() < 2 || spacing <= 0.0) {
+    return pts;
+  }
+
+  out.push_back(pts.front());
+
+  double accum = 0.0;
+
+  for (size_t i = 1; i < pts.size(); ++i)
+  {
+    double dx = pts[i].x - pts[i - 1].x;
+    double dy = pts[i].y - pts[i - 1].y;
+    double dist = std::sqrt(dx * dx + dy * dy);
+
+    accum += dist;
+
+    if (accum >= spacing)
+    {
+      out.push_back(pts[i]);
+      accum = 0.0;
+    }
+  }
+
+  return out;
+}
+
+std::vector<BoundaryPoint> TTAPlanner::adaptiveResample(
+    const std::vector<BoundaryPoint>& pts)
+{
+    std::vector<BoundaryPoint> out;
+    if (pts.size() < 3) return pts;
+
+    out.push_back(pts.front());
+
+    double accum = 0.0;
+
+    for (size_t i = 1; i < pts.size() - 1; i++)
+    {
+        // vectors
+        double dx1 = pts[i].x - pts[i-1].x;
+        double dy1 = pts[i].y - pts[i-1].y;
+
+        double dx2 = pts[i+1].x - pts[i].x;
+        double dy2 = pts[i+1].y - pts[i].y;
+
+        // normalize
+        double mag1 = std::sqrt(dx1*dx1 + dy1*dy1);
+        double mag2 = std::sqrt(dx2*dx2 + dy2*dy2);
+
+        if (mag1 < 1e-6 || mag2 < 1e-6) continue;
+
+        dx1 /= mag1; dy1 /= mag1;
+        dx2 /= mag2; dy2 /= mag2;
+
+        // angle change via dot product
+        double dot = dx1*dx2 + dy1*dy2;
+        dot = std::clamp(dot, -1.0, 1.0);
+        double angle = std::acos(dot);
+
+        // choose spacing
+        double spacing;
+        if (angle < 0.1)          spacing = 0.20;  // straight
+        else if (angle < 0.35)    spacing = 0.12;  // medium
+        else                      spacing = 0.07;  // tight corner
+
+        // distance from last kept point
+        double dx = pts[i].x - out.back().x;
+        double dy = pts[i].y - out.back().y;
+        double dist = std::sqrt(dx*dx + dy*dy);
+
+        accum += dist;
+
+        if (accum >= spacing)
+        {
+            out.push_back(pts[i]);
+            accum = 0.0;
+        }
+    }
+
+    out.push_back(pts.back());
+    return out;
 }
