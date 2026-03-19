@@ -1,0 +1,38 @@
+slam_toolbox:
+  ros__parameters:
+    odom_frame: odom
+    map_frame: map
+    base_frame: base_link
+    scan_topic: /scan
+    mode: mapping
+
+    max_laser_range: 30.0
+
+    # === TINY TRACK TUNING ===
+    minimum_travel_distance: 0.03      # smaller steps = more frequent updates on tiny track
+    minimum_travel_heading: 0.05       # catch small heading changes
+    minimum_time_interval: 0.1
+
+    # Stronger loop closure for tight spaces
+    loop_search_maximum_distance: 4.0
+    correlation_search_space_dimension: 1.2
+    correlation_search_space_resolution: 0.02
+    coarse_search_angle_offset: 0.785   # 45° coarse search (helps with 30° drift)
+    coarse_angle_resolution: 0.087      # finer coarse steps
+    loop_search_minimum_response_coarse: 0.10
+    loop_search_minimum_response_fine: 0.48
+    do_loop_closing: true
+
+    solver_plugin: solver_plugins::CeresSolver
+    ceres_loss_function: HuberLoss
+    use_scan_matching: true
+    use_scan_barycenter: true
+
+    map_update_interval: 0.3
+    scan_queue_size: 100
+    tf_buffer_duration: 180.0
+    transform_tolerance: 0.8
+    transform_publish_period: 0.01
+
+    debug_logging: true
+    enable_interactive_mode: true
