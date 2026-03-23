@@ -1,0 +1,6 @@
+gap_follower_node:
+  ros__parameters:
+    max_scan_distance: 12.0
+    depth_threshold: 2.5
+    max_speed: 5.0
+    min_speed: 1.0
