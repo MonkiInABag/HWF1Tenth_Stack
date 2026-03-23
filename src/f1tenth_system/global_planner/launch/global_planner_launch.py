@@ -13,7 +13,7 @@ def generate_launch_description():
 
     node = Node(
         package="global_planner",
-        executable="planner_node",
+        executable="global_planner_map_node",
         name="global_planner_node",
         output="screen",
         parameters=[params_file],
