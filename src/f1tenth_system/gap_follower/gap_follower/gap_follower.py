@@ -21,6 +21,7 @@ class GapFollower(Node):
         self.max_speed = 5.0           
         self.min_speed = 1.0
         self.prev_steering_angle = 0.0
+        self.cb_count = 0
         
        self.subscription = self.create_subscription(
             LaserScan,
