@@ -9,7 +9,7 @@ def generate_launch_description():
 
     slam_params = DeclareLaunchArgument(
         'slam_params_file',
-        default_value=PathJoinSubstitution([pkg, 'config', 'slam_async.yaml']),
+        default_value=PathJoinSubstitution([pkg, 'config', 'tiny_slam.yaml']),
         description='Full path to slam config'
     )
 

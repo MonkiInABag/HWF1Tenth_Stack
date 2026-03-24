@@ -1,0 +1,39 @@
+slam_toolbox:
+  ros__parameters:
+    odom_frame: odom
+    map_frame: map
+    base_frame: base_link
+    scan_topic: /scan
+    mode: localization
+
+    max_laser_range: 30.0
+    resolution: 0.015
+
+    # === TINY TRACK LOCALIZATION TUNING ===
+    minimum_travel_distance: 0.02
+    minimum_travel_heading: 0.03
+    minimum_time_interval: 0.1
+
+    # Wide search for heading correction on sharp turns
+    loop_search_maximum_distance: 6.0
+    correlation_search_space_dimension: 2.0
+    correlation_search_space_resolution: 0.008
+    correlation_search_space_smear_deviation: 0.05
+    coarse_search_angle_offset: 2.094      # 120° coarse search
+    coarse_angle_resolution: 0.052
+    loop_search_minimum_response_coarse: 0.06
+    loop_search_minimum_response_fine: 0.42
+
+    # Localization-specific settings
+    do_loop_closing: false
+    map_update_interval: 5.0
+    scan_queue_size: 100
+    tf_buffer_duration: 240.0
+    transform_tolerance: 0.5
+    transform_publish_period: 0.02
+
+    use_scan_matching: true
+    use_scan_barycenter: true
+
+    debug_logging: true
+    enable_interactive_mode: true
