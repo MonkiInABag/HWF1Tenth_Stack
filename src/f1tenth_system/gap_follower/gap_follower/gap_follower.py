@@ -4,6 +4,7 @@ from rclpy.node import Node
 import numpy as np
 from sensor_msgs.msg import LaserScan
 from ackermann_msgs.msg import AckermannDriveStamped
+from rclpy.qos import qos_profile_sensor_data
 
 # comment
 
@@ -21,7 +22,12 @@ class GapFollower(Node):
         self.min_speed = 1.0
         self.prev_steering_angle = 0.0
         
-        self.subscription = self.create_subscription(LaserScan, lidar_topic, self.lidar_callback, 10)
+       self.subscription = self.create_subscription(
+            LaserScan,
+            lidar_topic,
+            self.lidar_callback,
+            qos_profile_sensor_data
+        )
         self.publisher = self.create_publisher(AckermannDriveStamped, drive_topic, 10)
         self.get_logger().info("Gap Follower: Racing Line Stability Mode")
 
@@ -52,6 +58,7 @@ class GapFollower(Node):
         return None, None
 
     def lidar_callback(self, data):
+        self.get_logger().info("LIDAR callback triggered")
         num_beams = len(data.ranges)
         
         # 1. FIXED FOV (30% to 70%)
