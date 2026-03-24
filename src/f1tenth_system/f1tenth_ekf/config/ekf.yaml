@@ -15,6 +15,11 @@ ekf_filter_node:
                   false, false, false,
                   false, false, true,
                   true,  true,  false]
+
+    imu0_relative: true
+    imu0_pose_rejection_threshold: 0.3
+    imu0_twist_rejection_threshold: 0.1
+
     imu0_remove_gravitational_acceleration: true
 
     odom0: /odom
