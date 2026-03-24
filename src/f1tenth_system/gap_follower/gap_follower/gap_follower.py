@@ -18,7 +18,7 @@ class GapFollower(Node):
 
         # 2. Parameters
         self.max_scan_distance = 12.0
-        self.depth_threshold = 2.5
+        self.depth_threshold = 1.5
         self.max_speed = 5.0
         self.min_speed = 1.0
         self.prev_steering_angle = 0.0
@@ -43,8 +43,8 @@ class GapFollower(Node):
         min_dist = proc_ranges[closest_idx]
 
         # INCREASED BUBBLE: This pushes the car away from the inner wall
-        if min_dist < 1.5:
-            radius = 50  # Large bubble to force a wider line
+        if min_dist < 2.0:
+            radius = 80  # Large bubble to force a wider line
             start = max(0, closest_idx - radius)
             end = min(len(proc_ranges), closest_idx + radius)
             proc_ranges[start:end] = 0.0
@@ -64,8 +64,8 @@ class GapFollower(Node):
 
         # 1. FIXED FOV (30% to 70%)
         # This keeps the car focused forward and stops side-wall jitters
-        start_idx = int(num_beams * 0.30)
-        end_idx = int(num_beams * 0.70)
+        start_idx = int(num_beams * 0.20)
+        end_idx = int(num_beams * 0.80)
         front_ranges = data.ranges[start_idx:end_idx]
 
         # 2. Process
@@ -96,7 +96,7 @@ class GapFollower(Node):
 
             # 6. TRAIL BRAKING
             # Slow down earlier and harder for turns to prevent understeer clipping
-            turn_intensity = abs(smoothed_angle) / 0.45
+            turn_intensity = abs(smoothed_angle) / 0.30
             final_speed = max(self.min_speed, self.max_speed * (1.0 - turn_intensity))
 
             self.publish_drive(smoothed_angle, final_speed)
