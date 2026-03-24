@@ -19,8 +19,8 @@ class GapFollower(Node):
         # 2. Parameters
         self.max_scan_distance = 12.0
         self.depth_threshold = 1.5
-        self.max_speed = 5.0
-        self.min_speed = 1.0
+        self.max_speed = 2.5
+        self.min_speed = 2.0
         self.prev_steering_angle = 0.0
         self.cb_count = 0
 
