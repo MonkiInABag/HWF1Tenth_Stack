@@ -1,25 +1,3 @@
-# MIT License
-
-# Copyright (c) 2025 Hongrui Zheng
-
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.substitutions import Command
@@ -51,6 +29,12 @@ def generate_launch_description():
         'config',
         'mux.yaml'
     )
+    
+    ekf_config = os.path.join(
+        get_package_share_directory('f1tenth_ekf'),
+        'config',
+        'ekf.yaml'
+    )
 
     joy_la = DeclareLaunchArgument(
         'joy_config',
@@ -69,7 +53,12 @@ def generate_launch_description():
         default_value=mux_config,
         description='Descriptions for ackermann mux configs')
 
-    ld = LaunchDescription([joy_la, vesc_la, sensors_la, mux_la])
+    ekf_la = DeclareLaunchArgument(
+        'ekf_config',
+        default_value=ekf_config,
+        description='Descriptions for EKF config')
+
+    ld = LaunchDescription([joy_la, vesc_la, sensors_la, mux_la, ekf_la])
 
     joy_node = Node(
         package='joy',
@@ -127,6 +116,14 @@ def generate_launch_description():
         arguments=['0.27', '0.0', '0.11', '0.0', '0.0', '0.0', 'base_link', 'laser']
     )
 
+    ekf_node = Node(
+        package='robot_localization',
+        executable='ekf_node',
+        name='ekf_filter_node',
+        output='screen',
+        parameters=[LaunchConfiguration('ekf_config')],
+    )
+
     # finalize
     ld.add_action(joy_node)
     ld.add_action(joy_teleop_node)
@@ -137,5 +134,7 @@ def generate_launch_description():
     ld.add_action(urg_node)
     ld.add_action(ackermann_mux_node)
     ld.add_action(static_tf_node)
+
+    ld.add_action(ekf_node)
 
     return ld

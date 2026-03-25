@@ -21,8 +21,8 @@ public:
     declare_parameter<std::string>("map_topic", "/map");
     declare_parameter<std::string>("frame_id", "map");
 
-    declare_parameter<int>("occ_value", 100);
-    declare_parameter<int>("min_component_size", 2000);
+    declare_parameter<int>("occ_value", 50);
+    declare_parameter<int>("min_component_size", 200);
     declare_parameter<int>("stride", 2);
 
     declare_parameter<bool>("publish_wall_marker", true);
@@ -85,7 +85,7 @@ private:
         }
         visited[idx] = 1;
 
-        if (grid.data[idx] != occ_value) {
+        if (grid.data[idx] < occ_value) {
           continue;
         }
 
@@ -114,7 +114,7 @@ private:
             }
             visited[nidx] = 1;
 
-            if (grid.data[nidx] == occ_value) {
+            if (grid.data[nidx] >= occ_value) {
               q.push({nx, ny});
             }
           }
@@ -308,10 +308,17 @@ private:
     // 5) Publish result
     publishCenterline(centerline, frame_id);
 
+    computed = true;
+
     RCLCPP_INFO_THROTTLE(
       get_logger(), *get_clock(), 2000,
       "Wall1: %zu points, Wall2: %zu points, Centerline: %zu points",
       boundary1.size(), boundary2.size(), centerline.size());
+
+      if(computed)
+      {
+        return;
+      }
   }
 
   rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr map_sub_;
@@ -320,6 +327,8 @@ private:
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr wall_marker_pub_;
 
   TTAPlanner planner_;
+
+  bool computed = false;
 };
 
 int main(int argc, char ** argv)
