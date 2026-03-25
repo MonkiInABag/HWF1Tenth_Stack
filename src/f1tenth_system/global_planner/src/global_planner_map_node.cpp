@@ -36,9 +36,11 @@ public:
       std::bind(&GlobalPlannerMapNode::mapCallback, this, std::placeholders::_1)
     );
 
-    path_pub_ = create_publisher<nav_msgs::msg::Path>("/global_centerline", 1);
-    center_marker_pub_ = create_publisher<visualization_msgs::msg::Marker>("/global_centerline_marker", 1);
-    wall_marker_pub_ = create_publisher<visualization_msgs::msg::Marker>("/map_walls_marker", 1);
+    auto latched_qos = rclcpp::QoS(1).transient_local().reliable();
+
+    path_pub_ = create_publisher<nav_msgs::msg::Path>("/global_centerline", latched_qos);
+    center_marker_pub_ = create_publisher<visualization_msgs::msg::Marker>("/global_centerline_marker", latched_qos);
+    wall_marker_pub_ = create_publisher<visualization_msgs::msg::Marker>("/map_walls_marker", latched_qos);
 
     RCLCPP_INFO(get_logger(), "Subscribed to /map and ready to compute centerline.");
   }
