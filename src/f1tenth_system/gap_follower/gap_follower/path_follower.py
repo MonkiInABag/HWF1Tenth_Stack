@@ -13,19 +13,16 @@ from ackermann_msgs.msg import AckermannDriveStamped
 class PathFollower(Node):
     def __init__(self):
         super().__init__("path_follower_node")
+        self.get_logger().info("Path Follower Initialized")
 
-        # -----------------------------
-        # Stored data (state of the car)
-        # -----------------------------
+        #State of car
         self.path_points = []        # global path [(x, y), ...]
         self.current_x = None        # car position
         self.current_y = None
         self.current_yaw = None      # car heading
         self.latest_scan = None      # latest LiDAR data
 
-        # -----------------------------
-        # Tunable parameters
-        # -----------------------------
+        #Turnable parameters       
         self.lookahead_distance = 0.7   # how far ahead on path to aim
         self.avoid_distance = 1.2       # distance to trigger avoidance
         self.max_speed = 2.5
@@ -34,9 +31,7 @@ class PathFollower(Node):
         self.max_scan_distance = 12.0
         self.depth_threshold = 1.5      # used for gap detection
 
-        # -----------------------------
-        # ROS subscriptions
-        # -----------------------------
+        #Subscribers
         self.create_subscription(Path, "/global_centerline", self.path_callback, 10)
         self.create_subscription(Odometry, "/odom", self.odom_callback, 10)
         self.create_subscription(LaserScan, "/scan", self.scan_callback, qos_profile_sensor_data)
@@ -47,9 +42,7 @@ class PathFollower(Node):
         # Run control loop at 20Hz
         self.timer = self.create_timer(0.05, self.control_loop)
 
-    # -----------------------------
-    # CALLBACKS (receive data)
-    # -----------------------------
+    #Recieve data 
     def path_callback(self, msg):
         # Convert ROS Path → simple list of (x, y)
         self.path_points = [(p.pose.position.x, p.pose.position.y) for p in msg.poses]
@@ -69,9 +62,7 @@ class PathFollower(Node):
         # Store latest LiDAR scan
         self.latest_scan = msg
 
-    # -----------------------------
-    # MAIN CONTROL LOOP
-    # -----------------------------
+    #MAin
     def control_loop(self):
 
         # --- Safety check: do we have enough data? ---
@@ -83,11 +74,8 @@ class PathFollower(Node):
             self.publish_drive(0.0, 0.0)
             return
 
-        # =========================================================
-        # 1. GLOBAL PATH FOLLOWING
-        # =========================================================
-
-        # --- Find closest point on path ---
+        #Global path planner
+        #Find closest point on path
         closest_idx = 0
         best_dist2 = float("inf")
 
@@ -100,7 +88,7 @@ class PathFollower(Node):
                 best_dist2 = d2
                 closest_idx = i
 
-        # --- Move forward along path to find lookahead point ---
+        #Move forward along path to find lookahead point
         total = 0.0
         target_x, target_y = self.path_points[closest_idx]
 
@@ -118,7 +106,7 @@ class PathFollower(Node):
                 target_x, target_y = x2, y2
                 break
 
-        # --- Compute steering toward lookahead point ---
+        #Compute steering toward lookahead point
         dx = target_x - self.current_x
         dy = target_y - self.current_y
         target_heading = math.atan2(dy, dx)
@@ -131,10 +119,7 @@ class PathFollower(Node):
         while steering < -math.pi:
             steering += 2.0 * math.pi
 
-        # =========================================================
-        # 2. LIDAR SAFETY OVERRIDE (GAP FOLLOWER)
-        # =========================================================
-
+        #Gap Follower
         if self.latest_scan is not None:
 
             # Clean up LiDAR data
@@ -142,14 +127,14 @@ class PathFollower(Node):
             ranges = np.nan_to_num(ranges, nan=0.0, posinf=self.max_scan_distance, neginf=0.0)
             ranges = np.clip(ranges, 0, self.max_scan_distance)
 
-            # --- Check front distance ---
+            #Check front distance 
             num_beams = len(ranges)
             start_idx = int(num_beams * 0.40)
             end_idx = int(num_beams * 0.60)
 
             front_window = ranges[start_idx:end_idx]
 
-            # --- If obstacle too close → override with gap follower ---
+            # If obstacle too close → override with gap followe
             if len(front_window) > 0 and np.min(front_window) < self.avoid_distance:
 
                 # Focus on forward-facing region
@@ -170,9 +155,7 @@ class PathFollower(Node):
                     angle_offset = (start_idx + best_idx) * self.latest_scan.angle_increment
                     steering = self.latest_scan.angle_min + angle_offset
 
-        # =========================================================
-        # 3. SMOOTH STEERING (reduce jitter)
-        # =========================================================
+        #jitter reduce
         alpha = 0.18
 
         if abs(steering) < 0.10:
@@ -181,20 +164,13 @@ class PathFollower(Node):
         steering = alpha * steering + (1.0 - alpha) * self.prev_steering_angle
         self.prev_steering_angle = steering
 
-        # =========================================================
-        # 4. SPEED CONTROL
-        # =========================================================
+        #Speed control
         # Slow down when turning more
         speed = max(self.min_speed, self.max_speed * (1.0 - abs(steering)))
 
-        # =========================================================
-        # 5. SEND COMMAND TO CAR
-        # =========================================================
         self.publish_drive(steering, speed)
 
-    # -----------------------------
-    # Publish drive command
-    # -----------------------------
+    #car commands
     def publish_drive(self, steering_angle, speed):
         msg = AckermannDriveStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
