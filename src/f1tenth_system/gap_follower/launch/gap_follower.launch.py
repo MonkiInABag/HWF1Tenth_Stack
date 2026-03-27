@@ -5,6 +5,8 @@ import os
 
 
 def generate_launch_description():
+
+    # Path to params file (you can keep this even if not used yet)
     params_file = os.path.join(
         get_package_share_directory('gap_follower'),
         'config',
@@ -14,8 +16,8 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
             package='gap_follower',
-            executable='gap_follower_node',
-            name='gap_follower_node',
+            executable='path_follower_node',  
+            name='path_follower_node',
             output='screen',
             parameters=[params_file]
         )

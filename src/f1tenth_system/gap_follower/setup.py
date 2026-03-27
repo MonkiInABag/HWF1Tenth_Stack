@@ -36,6 +36,7 @@ setup(
     entry_points={
         'console_scripts': [
             'gap_follower_node = gap_follower.gap_follower:main',
+            'path_follower_node = gap_follower.path_follower:main',
         ],
     },
 )
