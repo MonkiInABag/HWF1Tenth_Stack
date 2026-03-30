@@ -33,7 +33,7 @@ class PathFollower(Node):
 
         #Subscribers
         self.create_subscription(Path, "/global_centerline", self.path_callback, 10)
-        self.create_subscription(Odometry, "/odom", self.odom_callback, 10)
+        self.create_subscription(Odometry, "/ekf/odometry", self.odom_callback, 10)
         self.create_subscription(LaserScan, "/scan", self.scan_callback, qos_profile_sensor_data)
 
         # Publisher for driving commands
