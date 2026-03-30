@@ -17,6 +17,9 @@ This repository contains autonomous racing algorithms developed by students for 
 3. Design efficient planning algorithms for multi-agent racing scenarios
 4. Contribute to the open-source F1TENTH community
 
+## Work Undertaken
+The work was taken over by a group of MEng students to complete for their 4th year dissertation project. The group has worked heavily on the software path planning and lidar + IMU integration to achieve the mission. 
+
 ## License
 MIT License - All algorithms and techniques developed are open-source to benefit the autonomous driving research community
 
