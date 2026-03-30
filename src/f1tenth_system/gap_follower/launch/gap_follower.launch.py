@@ -16,7 +16,7 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
             package='gap_follower',
-            executable='path_follower_node',  
+            executable='path_follower_node', 
             name='path_follower_node',
             output='screen',
             parameters=[params_file]

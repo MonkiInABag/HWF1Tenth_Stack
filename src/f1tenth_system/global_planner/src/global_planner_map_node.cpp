@@ -22,7 +22,7 @@ public:
     declare_parameter<std::string>("frame_id", "map");
 
     declare_parameter<int>("occ_value", 50);
-    declare_parameter<int>("min_component_size", 200);
+    declare_parameter<int>("min_component_size", 100);
     declare_parameter<int>("stride", 2);
 
     declare_parameter<bool>("publish_wall_marker", true);
