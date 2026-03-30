@@ -119,15 +119,10 @@ class PathFollower(Node):
         while steering < -math.pi:
             steering += 2.0 * math.pi
 
-<<<<<<< HEAD
-        #Gap Follower
-        if self.latest_scan is not None:
-=======
         # 2. LIDAR SAFETY OVERRIDE (GAP FOLLOWER)
 
         #if self.latest_scan is not None:
         if  False:
->>>>>>> 0a41ec5 (tweeked values -- turned off local for now)
 
             # Clean up LiDAR data
             ranges = np.array(self.latest_scan.ranges)
