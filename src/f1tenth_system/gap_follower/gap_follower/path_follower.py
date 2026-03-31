@@ -5,9 +5,13 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
+
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Odometry, Path
 from ackermann_msgs.msg import AckermannDriveStamped
+
+from tf2_ros import Buffer, TransformListener
+from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
 
 
 class PathFollower(Node):
@@ -15,7 +19,7 @@ class PathFollower(Node):
         super().__init__("path_follower_node")
         self.get_logger().info("Path Follower Initialized")
 
-        # State of car
+        # State
         self.path_points = []
         self.current_x = None
         self.current_y = None
@@ -23,15 +27,19 @@ class PathFollower(Node):
         self.latest_scan = None
 
         # Tunable parameters
-        self.lookahead_distance = 1.2
+        self.lookahead_distance = 0.8
         self.avoid_distance = 1.2
-        self.max_speed = 1.2
-        self.min_speed = 0.6
+        self.max_speed = 1.0
+        self.min_speed = 0.5
         self.prev_steering_angle = 0.0
         self.max_scan_distance = 12.0
         self.depth_threshold = 1.5
         self.wheelbase = 0.25
-        self.max_steering_angle = 0.34
+        self.max_steering_angle = 0.5
+
+        # TF
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
 
         # Subscribers
         self.create_subscription(Path, "/global_centerline", self.path_callback, 10)
@@ -41,27 +49,49 @@ class PathFollower(Node):
         # Publisher
         self.drive_pub = self.create_publisher(AckermannDriveStamped, "/drive", 10)
 
-        # Control loop
+        # Timer
         self.timer = self.create_timer(0.05, self.control_loop)
 
     def path_callback(self, msg):
         self.path_points = [(p.pose.position.x, p.pose.position.y) for p in msg.poses]
+        self.get_logger().info(
+            f"Received path with {len(self.path_points)} points in frame {msg.header.frame_id}",
+            throttle_duration_sec=1.0
+        )
 
     def odom_callback(self, msg):
-        self.current_x = msg.pose.pose.position.x
-        self.current_y = msg.pose.pose.position.y
-
-        q = msg.pose.pose.orientation
-        siny_cosp = 2.0 * (q.w * q.z + q.x * q.y)
-        cosy_cosp = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
-        self.current_yaw = math.atan2(siny_cosp, cosy_cosp)
+        # Keep this subscriber alive in case needed later, but do not use raw odom pose directly
+        pass
 
     def scan_callback(self, msg):
         self.latest_scan = msg
 
+    def update_pose_from_tf(self):
+        try:
+            transform = self.tf_buffer.lookup_transform(
+                "map",
+                "base_link",
+                rclpy.time.Time()
+            )
+
+            t = transform.transform.translation
+            q = transform.transform.rotation
+
+            self.current_x = t.x
+            self.current_y = t.y
+
+            siny_cosp = 2.0 * (q.w * q.z + q.x * q.y)
+            cosy_cosp = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
+            self.current_yaw = math.atan2(siny_cosp, cosy_cosp)
+
+            return True
+
+        except (LookupException, ConnectivityException, ExtrapolationException):
+            return False
+
     def control_loop(self):
-        # Safety checks
-        if self.current_x is None or self.current_y is None or self.current_yaw is None:
+        # Update pose in map frame using TF
+        if not self.update_pose_from_tf():
             self.publish_drive(0.0, 0.0)
             return
 
@@ -69,7 +99,7 @@ class PathFollower(Node):
             self.publish_drive(0.0, 0.0)
             return
 
-        # Find closest point on path
+        # Find closest path point
         closest_idx = 0
         best_dist2 = float("inf")
 
@@ -82,7 +112,7 @@ class PathFollower(Node):
                 best_dist2 = d2
                 closest_idx = i
 
-        # Find lookahead point by walking forward along path
+        # Walk forward to find lookahead point
         total = 0.0
         target_x, target_y = self.path_points[closest_idx]
 
@@ -104,7 +134,6 @@ class PathFollower(Node):
         dx = target_x - self.current_x
         dy = target_y - self.current_y
 
-        # Transform target into vehicle frame
         local_x = math.cos(self.current_yaw) * dx + math.sin(self.current_yaw) * dy
         local_y = -math.sin(self.current_yaw) * dx + math.cos(self.current_yaw) * dy
 
@@ -116,8 +145,8 @@ class PathFollower(Node):
         alpha_pp = math.atan2(local_y, local_x)
         steering = math.atan2(2.0 * self.wheelbase * math.sin(alpha_pp), Ld)
 
-        # LiDAR override currently disabled
-        if False:
+        # LiDAR override disabled
+        if False and self.latest_scan is not None:
             ranges = np.array(self.latest_scan.ranges)
             ranges = np.nan_to_num(ranges, nan=0.0, posinf=self.max_scan_distance, neginf=0.0)
             ranges = np.clip(ranges, 0, self.max_scan_distance)
@@ -125,7 +154,6 @@ class PathFollower(Node):
             num_beams = len(ranges)
             start_idx = int(num_beams * 0.40)
             end_idx = int(num_beams * 0.60)
-
             front_window = ranges[start_idx:end_idx]
 
             if len(front_window) > 0 and np.min(front_window) < self.avoid_distance:
@@ -143,9 +171,9 @@ class PathFollower(Node):
                     steering = self.latest_scan.angle_min + angle_offset
 
         # Smoothing
-        smoothing = 0.12
+        smoothing = 0.25
 
-        if abs(steering) < 0.05:
+        if abs(steering) < 0.03:
             steering = 0.0
 
         steering = smoothing * steering + (1.0 - smoothing) * self.prev_steering_angle
@@ -155,6 +183,13 @@ class PathFollower(Node):
         # Speed control
         turn_scale = max(0.0, 1.0 - abs(steering) / self.max_steering_angle)
         speed = self.min_speed + (self.max_speed - self.min_speed) * turn_scale
+
+        self.get_logger().info(
+            f"car=({self.current_x:.2f},{self.current_y:.2f}) "
+            f"target=({target_x:.2f},{target_y:.2f}) "
+            f"steering={steering:.3f} speed={speed:.3f}",
+            throttle_duration_sec=0.5
+        )
 
         self.publish_drive(steering, speed)
 
