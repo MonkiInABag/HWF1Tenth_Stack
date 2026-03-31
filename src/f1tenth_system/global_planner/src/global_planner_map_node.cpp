@@ -19,7 +19,7 @@ public:
   : Node("global_planner_map_node")
   {
     declare_parameter<std::string>("map_topic", "/map");
-    declare_parameter<std::string>("frame_id", "map");
+    declare_parameter<std::string>("frame_id", "odom");
 
     declare_parameter<int>("occ_value", 50);
     declare_parameter<int>("min_component_size", 100);
