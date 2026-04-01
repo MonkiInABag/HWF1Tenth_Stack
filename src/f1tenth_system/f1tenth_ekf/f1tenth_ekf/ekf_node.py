@@ -31,7 +31,6 @@ def wrap_angle(angle: float) -> float:
 
 
 class F1TenthEkfNode(Node):
-
     def __init__(self):
         super().__init__('f1tenth_ekf_node')
         self.get_logger().info("REAL EKF VERSION IS RUNNING")
@@ -57,26 +56,26 @@ class F1TenthEkfNode(Node):
         self.fused_pub = self.create_publisher(Odometry, fused_topic, 10)
         self.tf_broadcaster = TransformBroadcaster(self)
 
-        # EKF State: [x, y, yaw, v]
+        # State: [x, y, yaw, v]
         self.x = np.zeros((4, 1), dtype=float)
 
         # Covariance
         self.P = np.diag([
-            0.2**2,                    # x
-            0.2**2,                    # y
-            (5.0 * math.pi / 180.0)**2,  # yaw
-            0.3**2                     # v
+            0.2**2,                        # x
+            0.2**2,                        # y
+            (5.0 * math.pi / 180.0)**2,    # yaw
+            0.3**2                         # v
         ])
 
         # Process noise
         self.Q = np.diag([
-            0.02**2,                   # x
-            0.02**2,                   # y
-            (2.0 * math.pi / 180.0)**2,  # yaw
-            0.15**2                    # v
+            0.02**2,                       # x
+            0.02**2,                       # y
+            (2.0 * math.pi / 180.0)**2,    # yaw
+            0.15**2                        # v
         ])
 
-        # Odom measurement noise for [x, y, yaw, v]
+        # Odom measurement noise: [x, y, yaw, v]
         self.R = np.diag([
             0.05**2,
             0.05**2,
@@ -84,20 +83,15 @@ class F1TenthEkfNode(Node):
             0.10**2
         ])
 
-        # Timing / state
         self.last_imu_stamp = None
         self.max_dt = 0.1
         self.omega_z = 0.0
         self.initialized_from_odom = False
 
-        # Rate reporting
         self.imu_count = 0
         self.odom_count = 0
         self.create_timer(1.0, self.report_rates)
 
-    # ===============================
-    # IMU Callback -> Predict
-    # ===============================
     def on_imu(self, msg: Imu):
         self.imu_count += 1
 
@@ -123,9 +117,6 @@ class F1TenthEkfNode(Node):
         if self.initialized_from_odom:
             self.predict(dt, self.omega_z)
 
-    # ===============================
-    # Odom Callback -> Correct
-    # ===============================
     def on_odom(self, msg: Odometry):
         self.odom_count += 1
 
@@ -134,7 +125,6 @@ class F1TenthEkfNode(Node):
         odom_yaw = quat_to_yaw(msg.pose.pose.orientation)
         odom_v = float(msg.twist.twist.linear.x)
 
-        # Initialize filter on first odom message
         if not self.initialized_from_odom:
             self.x[0, 0] = odom_x
             self.x[1, 0] = odom_y
@@ -147,9 +137,6 @@ class F1TenthEkfNode(Node):
         self.correct(odom_x, odom_y, odom_yaw, odom_v)
         self.publish_fused()
 
-    # ===============================
-    # Predict Step
-    # ===============================
     def predict(self, dt: float, omega_z: float):
         px, py, yaw, v = self.x.flatten()
 
@@ -168,16 +155,12 @@ class F1TenthEkfNode(Node):
 
         self.P = F @ self.P @ F.T + self.Q
 
-    # ===============================
-    # Correct Step
-    # ===============================
     def correct(self, odom_x: float, odom_y: float, odom_yaw: float, odom_v: float):
         z = np.array([[odom_x], [odom_y], [odom_yaw], [odom_v]])
-
         H = np.eye(4)
 
         y = z - H @ self.x
-        y[2, 0] = wrap_angle(y[2, 0])   # wrap yaw innovation
+        y[2, 0] = wrap_angle(y[2, 0])
 
         S = H @ self.P @ H.T + self.R
         K = self.P @ H.T @ np.linalg.inv(S)
@@ -188,9 +171,6 @@ class F1TenthEkfNode(Node):
         I = np.eye(4)
         self.P = (I - K @ H) @ self.P
 
-    # ===============================
-    # Publish Fused Odometry + TF
-    # ===============================
     def publish_fused(self):
         msg = Odometry()
 
@@ -234,9 +214,6 @@ class F1TenthEkfNode(Node):
         t.transform.rotation = yaw_to_quat(float(yaw))
         self.tf_broadcaster.sendTransform(t)
 
-    # ===============================
-    # Debug
-    # ===============================
     def report_rates(self):
         self.get_logger().info(
             f"IMU: {self.imu_count}/s | "
