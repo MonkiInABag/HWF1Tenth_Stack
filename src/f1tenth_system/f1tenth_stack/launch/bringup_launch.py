@@ -115,7 +115,7 @@ def generate_launch_description():
         name='static_baselink_to_laser',
         arguments=['0.27', '0.0', '0.11', '0.0', '0.0', '0.0', 'base_link', 'laser']
     )
-
+#
     ekf_node = Node(
         package='robot_localization',
         executable='ekf_node',
