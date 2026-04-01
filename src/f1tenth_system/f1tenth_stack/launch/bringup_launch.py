@@ -117,7 +117,7 @@ def generate_launch_description():
     )
 
     ekf_node = Node(
-        package='f1tenth_ekf',
+        package='robot_localization',
         executable='ekf_node',
         name='ekf_filter_node',
         output='screen',
