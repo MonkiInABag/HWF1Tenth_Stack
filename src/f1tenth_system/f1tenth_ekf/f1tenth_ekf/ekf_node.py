@@ -7,7 +7,8 @@ from rclpy.node import Node
 
 from sensor_msgs.msg import Imu
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Quaternion
+from geometry_msgs.msg import Quaternion, TransformStamped
+from tf2_ros import TransformBroadcaster
 
 
 def yaw_to_quat(yaw: float) -> Quaternion:
@@ -19,6 +20,16 @@ def yaw_to_quat(yaw: float) -> Quaternion:
     return q
 
 
+def quat_to_yaw(q: Quaternion) -> float:
+    siny_cosp = 2.0 * (q.w * q.z + q.x * q.y)
+    cosy_cosp = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
+    return math.atan2(siny_cosp, cosy_cosp)
+
+
+def wrap_angle(angle: float) -> float:
+    return (angle + math.pi) % (2.0 * math.pi) - math.pi
+
+
 class F1TenthEkfNode(Node):
 
     def __init__(self):
@@ -28,7 +39,7 @@ class F1TenthEkfNode(Node):
         # Parameters
         self.declare_parameter('imu_topic', '/imu/data')
         self.declare_parameter('odom_topic', '/odom')
-        self.declare_parameter('fused_odom_topic', '/ekf/odometry')
+        self.declare_parameter('fused_odom_topic', '/odometry/filtered')
         self.declare_parameter('gyro_bias_z', 0.0)
 
         imu_topic = self.get_parameter('imu_topic').value
@@ -44,34 +55,40 @@ class F1TenthEkfNode(Node):
         self.imu_sub = self.create_subscription(Imu, imu_topic, self.on_imu, 50)
         self.odom_sub = self.create_subscription(Odometry, odom_topic, self.on_odom, 50)
         self.fused_pub = self.create_publisher(Odometry, fused_topic, 10)
+        self.tf_broadcaster = TransformBroadcaster(self)
 
         # EKF State: [x, y, yaw, v]
         self.x = np.zeros((4, 1), dtype=float)
 
         # Covariance
         self.P = np.diag([
-            0.5**2,
-            0.5**2,
-            (10.0 * math.pi/180.0)**2,
-            0.5**2
+            0.2**2,                    # x
+            0.2**2,                    # y
+            (5.0 * math.pi / 180.0)**2,  # yaw
+            0.3**2                     # v
         ])
 
         # Process noise
         self.Q = np.diag([
-            0.05**2,
-            0.05**2,
-            (1.5 * math.pi/180.0)**2,
-            0.2**2
+            0.02**2,                   # x
+            0.02**2,                   # y
+            (2.0 * math.pi / 180.0)**2,  # yaw
+            0.15**2                    # v
         ])
 
-        # Speed measurement noise
-        self.R_v = np.array([[0.3**2]])
+        # Odom measurement noise for [x, y, yaw, v]
+        self.R = np.diag([
+            0.05**2,
+            0.05**2,
+            (3.0 * math.pi / 180.0)**2,
+            0.10**2
+        ])
 
-        # Timing
+        # Timing / state
         self.last_imu_stamp = None
         self.max_dt = 0.1
         self.omega_z = 0.0
-        self.last_odom_header = None
+        self.initialized_from_odom = False
 
         # Rate reporting
         self.imu_count = 0
@@ -79,7 +96,7 @@ class F1TenthEkfNode(Node):
         self.create_timer(1.0, self.report_rates)
 
     # ===============================
-    # IMU Callback → Predict Step
+    # IMU Callback -> Predict
     # ===============================
     def on_imu(self, msg: Imu):
         self.imu_count += 1
@@ -103,29 +120,40 @@ class F1TenthEkfNode(Node):
 
         self.omega_z = float(msg.angular_velocity.z) - self.gyro_bias_z
 
-        self.predict(dt, self.omega_z)
+        if self.initialized_from_odom:
+            self.predict(dt, self.omega_z)
 
     # ===============================
-    # Odom Callback → Update Step
+    # Odom Callback -> Correct
     # ===============================
     def on_odom(self, msg: Odometry):
         self.odom_count += 1
-        self.last_odom_header = msg.header
 
-        v_meas = float(msg.twist.twist.linear.x)
-        self.update_speed(v_meas)
+        odom_x = float(msg.pose.pose.position.x)
+        odom_y = float(msg.pose.pose.position.y)
+        odom_yaw = quat_to_yaw(msg.pose.pose.orientation)
+        odom_v = float(msg.twist.twist.linear.x)
 
+        # Initialize filter on first odom message
+        if not self.initialized_from_odom:
+            self.x[0, 0] = odom_x
+            self.x[1, 0] = odom_y
+            self.x[2, 0] = odom_yaw
+            self.x[3, 0] = odom_v
+            self.initialized_from_odom = True
+            self.publish_fused()
+            return
+
+        self.correct(odom_x, odom_y, odom_yaw, odom_v)
         self.publish_fused()
 
     # ===============================
     # Predict Step
     # ===============================
-    def predict(self, dt, omega_z):
+    def predict(self, dt: float, omega_z: float):
         px, py, yaw, v = self.x.flatten()
 
-        yaw_new = yaw + omega_z * dt
-        yaw_new = (yaw_new + math.pi) % (2 * math.pi) - math.pi
-
+        yaw_new = wrap_angle(yaw + omega_z * dt)
         px_new = px + v * math.cos(yaw) * dt
         py_new = py + v * math.sin(yaw) * dt
         v_new = v
@@ -134,28 +162,34 @@ class F1TenthEkfNode(Node):
 
         F = np.eye(4)
         F[0, 2] = -v * math.sin(yaw) * dt
-        F[0, 3] =  math.cos(yaw) * dt
+        F[0, 3] = math.cos(yaw) * dt
         F[1, 2] =  v * math.cos(yaw) * dt
-        F[1, 3] =  math.sin(yaw) * dt
+        F[1, 3] = math.sin(yaw) * dt
 
         self.P = F @ self.P @ F.T + self.Q
 
     # ===============================
-    # Update Step (Speed)
+    # Correct Step
     # ===============================
-    def update_speed(self, v_meas):
-        H = np.array([[0.0, 0.0, 0.0, 1.0]])
-        z = np.array([[v_meas]])
+    def correct(self, odom_x: float, odom_y: float, odom_yaw: float, odom_v: float):
+        z = np.array([[odom_x], [odom_y], [odom_yaw], [odom_v]])
+
+        H = np.eye(4)
 
         y = z - H @ self.x
-        S = H @ self.P @ H.T + self.R_v
+        y[2, 0] = wrap_angle(y[2, 0])   # wrap yaw innovation
+
+        S = H @ self.P @ H.T + self.R
         K = self.P @ H.T @ np.linalg.inv(S)
 
         self.x = self.x + K @ y
-        self.P = (np.eye(4) - K @ H) @ self.P
+        self.x[2, 0] = wrap_angle(self.x[2, 0])
+
+        I = np.eye(4)
+        self.P = (I - K @ H) @ self.P
 
     # ===============================
-    # Publish Fused Odometry
+    # Publish Fused Odometry + TF
     # ===============================
     def publish_fused(self):
         msg = Odometry()
@@ -174,27 +208,34 @@ class F1TenthEkfNode(Node):
         msg.twist.twist.linear.x = float(v)
         msg.twist.twist.angular.z = float(self.omega_z)
 
-        # ---------------------------
-        # Covariances
-        # ---------------------------
         pose_cov = [0.0] * 36
-        pose_cov[0] = float(self.P[0, 0])     # x
-        pose_cov[7] = float(self.P[1, 1])     # y
-        pose_cov[35] = float(self.P[2, 2])    # yaw
-        pose_cov[14] = 999.0                  # z (unused)
-        pose_cov[21] = 999.0                  # roll
-        pose_cov[28] = 999.0                  # pitch
+        pose_cov[0] = float(self.P[0, 0])
+        pose_cov[7] = float(self.P[1, 1])
+        pose_cov[35] = float(self.P[2, 2])
+        pose_cov[14] = 999.0
+        pose_cov[21] = 999.0
+        pose_cov[28] = 999.0
         msg.pose.covariance = pose_cov
 
         twist_cov = [0.0] * 36
-        twist_cov[0] = float(self.P[3, 3])    # vx
-        twist_cov[35] = 0.25                  # yaw rate approx
+        twist_cov[0] = float(self.P[3, 3])
+        twist_cov[35] = 0.05
         msg.twist.covariance = twist_cov
 
         self.fused_pub.publish(msg)
 
+        t = TransformStamped()
+        t.header.stamp = msg.header.stamp
+        t.header.frame_id = "odom"
+        t.child_frame_id = "base_link"
+        t.transform.translation.x = float(px)
+        t.transform.translation.y = float(py)
+        t.transform.translation.z = 0.0
+        t.transform.rotation = yaw_to_quat(float(yaw))
+        self.tf_broadcaster.sendTransform(t)
+
     # ===============================
-    # Debug Rate Report
+    # Debug
     # ===============================
     def report_rates(self):
         self.get_logger().info(
