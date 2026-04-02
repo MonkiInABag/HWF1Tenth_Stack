@@ -11,31 +11,31 @@ slam_toolbox:
     # ROS Parameters
     odom_frame: odom
     map_frame: map
-    base_frame: base_link                 # Changed to match your TF tree
+    base_frame: base_link
     scan_topic: /scan
     use_map_saver: true
     mode: mapping
 
-    debug_logging: false                  # Keep off during racing
-    throttle_scans: 3                     # Reduced from 1 → lower CPU (your scan is ~40Hz)
+    debug_logging: false
+    throttle_scans: 3
     transform_publish_period: 0.02
-    map_update_interval: 3.0              # Less frequent updates than mapping
-    resolution: 0.05                     # Same as your good mapping config
+    map_update_interval: 3.0
+    resolution: 0.05
     min_laser_range: 0.0
-    max_laser_range: 15.0                 # Realistic for indoor track
-    minimum_time_interval: 0.15           # Don't process every single scan
-    transform_timeout: 0.35               # Higher tolerance while moving fast
+    max_laser_range: 15.0
+    minimum_time_interval: 0.15
+    transform_timeout: 0.35
     tf_buffer_duration: 30.0
     stack_size_to_use: 40000000
-    enable_interactive_mode: false        # Usually not needed in racing
+    enable_interactive_mode: false #FOR TESTING, NOT NEEDED FOR RACING
 
     # General Parameters
     update_rate: 5.0
     use_scan_matching: true
     use_scan_barycenter: true
-    minimum_travel_distance: 0.12         # Slightly higher than mapping
-    minimum_travel_heading: 0.20          # Slightly higher than mapping
-    scan_buffer_size: 10                   # Much smaller buffer → lower memory/CPU
+    minimum_travel_distance: 0.12
+    minimum_travel_heading: 0.20
+    scan_buffer_size: 10
     scan_buffer_maximum_scan_distance: 6.0
     link_match_minimum_response_fine: 0.12
     link_scan_maximum_distance: 1.0
@@ -52,7 +52,7 @@ slam_toolbox:
     correlation_search_space_smear_deviation: 0.1
 
     # Loop Closure Parameters
-    loop_search_space_dimension: 5.0      # Smaller search space for faster computation
+    loop_search_space_dimension: 5.0
     loop_search_space_resolution: 0.05
     loop_search_space_smear_deviation: 0.03
 
