@@ -113,7 +113,8 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     current_steering_angle =
       (last_servo_cmd_->data - steering_to_servo_offset_) / steering_to_servo_gain_;
     current_angular_velocity = current_speed * tan(current_steering_angle) / wheelbase_;
-    RCLCPP_INFO(this->get_logger(), "Steering angle: %f", current_steering_angle);
+    RCLCPP_INFO(this->get_logger(), "servo=%f steering_angle=%f speed=%f ang_vel=%f yaw=%f",
+     last_servo_cmd_->data, current_steering_angle, current_speed, current_angular_velocity, yaw_);
   }
 
   // use current state as last state if this is our first time here
