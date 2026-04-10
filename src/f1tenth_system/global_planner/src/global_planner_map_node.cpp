@@ -12,6 +12,11 @@
 #include <algorithm>
 #include <cstdint>
 
+// 1) Subscribe to /map (nav_msgs/OccupancyGrid)
+// 2) Process the occupancy grid to find two largest occupied components (walls)
+// 3) Convert those components into vectors of BoundaryPoint
+// 4) Run the TTA planner to compute the centerline
+// 5) Publish the centerline as a nav_msgs/Path and a visualization_msgs/
 class GlobalPlannerMapNode : public rclcpp::Node
 {
 public:

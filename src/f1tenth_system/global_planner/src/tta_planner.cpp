@@ -12,6 +12,14 @@ bool TTAPlanner::computeCenterline(
   std::vector<BoundaryPoint> & centerline_out
 )
 {
+  // 1) Preprocess boundaries (remove duplicates, etc.)
+  // 2) Order boundary points into chains
+  // 3) Pair points between left and right boundaries
+  // 4) Compute midpoints of pairs
+  // 5) Order midpoints into a centerline
+  // 6) Remove large jumps in centerline
+  // 7) Optionally smooth or resample centerline
+  // 8) Output result
   auto L = preprocessBoundaries(left_boundary);
   auto R = preprocessBoundaries(right_boundary);
 
@@ -245,6 +253,8 @@ std::vector<BoundaryPoint> TTAPlanner::resample(
   return out;
 }
 
+
+// Simple adaptive resampling that keeps more points in areas with high curvature
 std::vector<BoundaryPoint> TTAPlanner::adaptiveResample(
     const std::vector<BoundaryPoint>& pts)
 {
