@@ -11,6 +11,7 @@
 #include <vector>
 #include <algorithm>
 #include <cstdint>
+#include <cmath>
 
 // 1) Subscribe to /map (nav_msgs/OccupancyGrid)
 // 2) Process the occupancy grid to find two largest occupied components (walls)
@@ -29,6 +30,7 @@ public:
     declare_parameter<int>("occ_value", 50);
     declare_parameter<int>("min_component_size", 200);
     declare_parameter<int>("stride", 2);
+    declare_parameter<double>("close_centerline_distance", 0.0);
 
     declare_parameter<bool>("publish_wall_marker", true);
     declare_parameter<int>("max_wall_marker_points", 30000);
@@ -224,11 +226,27 @@ private:
     const std::vector<BoundaryPoint> & centerline,
     const std::string & frame_id)
   {
+    std::vector<BoundaryPoint> published_centerline = centerline;
+    const double close_distance = get_parameter("close_centerline_distance").as_double();
+
+    if (close_distance > 0.0 && published_centerline.size() > 2)
+    {
+      const auto & first = published_centerline.front();
+      const auto & last = published_centerline.back();
+      const double dx = last.x - first.x;
+      const double dy = last.y - first.y;
+      const double endpoint_distance = std::hypot(dx, dy);
+
+      if (endpoint_distance <= close_distance) {
+        published_centerline.push_back(first);
+      }
+    }
+
     nav_msgs::msg::Path path;
     path.header.frame_id = frame_id;
     path.header.stamp = now();
 
-    for (const auto & p : centerline)
+    for (const auto & p : published_centerline)
     {
       geometry_msgs::msg::PoseStamped pose;
       pose.header = path.header;
@@ -256,7 +274,7 @@ private:
     marker.color.g = 1.0;
     marker.color.b = 0.0;
 
-    for (const auto & p : centerline)
+    for (const auto & p : published_centerline)
     {
       geometry_msgs::msg::Point gp;
       gp.x = p.x;
@@ -270,6 +288,10 @@ private:
 
   void mapCallback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg)
   {
+    if (computed) {
+      return;
+    }
+
     const std::string frame_id = get_parameter("frame_id").as_string();
     const int occ_value = static_cast<int>(get_parameter("occ_value").as_int());
     const int min_component_size = static_cast<int>(get_parameter("min_component_size").as_int());
@@ -321,11 +343,6 @@ private:
       get_logger(), *get_clock(), 2000,
       "Wall1: %zu points, Wall2: %zu points, Centerline: %zu points",
       boundary1.size(), boundary2.size(), centerline.size());
-
-      if(computed)
-      {
-        return;
-      }
   }
 
   rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr map_sub_;

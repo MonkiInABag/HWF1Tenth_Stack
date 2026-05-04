@@ -151,11 +151,9 @@ std::vector<BoundaryPoint> TTAPlanner::orderLoop(const std::vector<BoundaryPoint
   if (centerline.size() < 2) {return centerline;}
 
   std::vector<BoundaryPoint> out = centerline;
-  const double close_dist2 = 1.0; // distance squared to consider points as neighbors
+  const double close_dist2 = 1.0;  // 1m squared
   if (dist2(out.front(), out.back()) < close_dist2) {
-    out.back() = out.front(); // close the loop
-  } else {
-    out.push_back(out.front()); // close the loop by adding the first point at the end
+    out.back() = out.front();
   }
   return out;
 }

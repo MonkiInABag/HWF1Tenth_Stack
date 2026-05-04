@@ -1,4 +1,5 @@
 from setuptools import setup
+from setuptools import find_packages
 import os
 from glob import glob
 
@@ -7,7 +8,7 @@ package_name = 'gap_follower'
 setup(
     name=package_name,
     version='0.0.0',
-    packages=[package_name],
+    packages=find_packages(exclude=['test']),
     data_files=[
         (
             'share/ament_index/resource_index/packages',
@@ -25,6 +26,10 @@ setup(
             os.path.join('share', package_name, 'config'),
             glob('config/*.yaml')
         ),
+        (
+            os.path.join('share', package_name, 'sim'),
+            glob('sim/*.yaml')
+        ),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -37,6 +42,7 @@ setup(
         'console_scripts': [
             'gap_follower_node = gap_follower.gap_follower:main',
             'path_follower_node = gap_follower.path_follower:main',
+            'fake_vehicle_sim = gap_follower.sim.fake_vehicle_sim:main',
         ],
     },
 )

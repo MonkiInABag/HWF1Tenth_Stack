@@ -1,0 +1,51 @@
+fake_vehicle_sim:
+  ros__parameters:
+    drive_topic: /drive
+    odom_topic: /odometry/filtered
+    raw_odom_topic: /odom
+    scan_topic: /scan
+    marker_topic: /fake_vehicle_marker
+
+    odom_frame: odom
+    map_frame: map
+    base_frame: base_link
+    laser_frame: laser
+    publish_tf: true
+    publish_map_to_odom_tf: true
+    publish_marker: true
+
+    map_topic: /map
+    path_topic: /global_centerline
+    use_map_raycast: true
+    auto_start_on_path: true
+    start_path_fraction: 0.55
+    start_search_mode: fraction
+    start_reverse_direction: true
+    occupied_threshold: 50
+    raycast_step: 0.05
+
+    initial_x: 0.0
+    initial_y: 0.0
+    initial_yaw: 0.0
+    wheelbase: 0.25
+    max_steering_angle: 0.5
+    drive_timeout_sec: 0.5
+    update_rate_hz: 50.0
+    scan_rate_hz: 20.0
+    vehicle_length: 0.48
+    vehicle_width: 0.28
+    vehicle_height: 0.15
+    vehicle_marker_scale: 1.8
+    publish_heading_marker: true
+
+    scan_beams: 721
+    scan_angle_min: -2.35
+    scan_angle_max: 2.35
+    scan_range_max: 10.0
+    scan_range_min: 0.05
+
+    enable_front_blocker: false
+    blocker_start_sec: 8.0
+    blocker_duration_sec: 4.0
+    blocker_distance: 0.45
+    blocker_width_degrees: 25.0

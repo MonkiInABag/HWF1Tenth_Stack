@@ -1,0 +1,41 @@
+fake_vehicle_sim:
+  ros__parameters:
+    drive_topic: /drive
+    odom_topic: /odometry/filtered
+    raw_odom_topic: /odom
+    scan_topic: /scan
+    marker_topic: /fake_vehicle_marker
+
+    odom_frame: odom
+    map_frame: map
+    base_frame: base_link
+    laser_frame: laser
+    publish_tf: true
+    publish_marker: true
+
+    initial_x: 0.0
+    initial_y: 0.0
+    initial_yaw: 0.0
+    wheelbase: 0.25
+    max_steering_angle: 0.5
+    drive_timeout_sec: 0.5
+    update_rate_hz: 50.0
+    scan_rate_hz: 20.0
+    vehicle_length: 0.55
+    vehicle_width: 0.32
+    vehicle_height: 0.15
+    vehicle_marker_scale: 3.0
+    publish_heading_marker: true
+
+    scan_beams: 721
+    scan_angle_min: -2.35
+    scan_angle_max: 2.35
+    scan_range_max: 10.0
+    scan_range_min: 0.05
+
+    # Set true to test path_follower's blocker/local-planner behaviour.
+    enable_front_blocker: false
+    blocker_start_sec: 8.0
+    blocker_duration_sec: 4.0
+    blocker_distance: 0.45
+    blocker_width_degrees: 25.0
