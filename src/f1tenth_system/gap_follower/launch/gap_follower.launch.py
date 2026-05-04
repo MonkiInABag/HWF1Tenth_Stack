@@ -12,13 +12,23 @@ def generate_launch_description():
         'config',
         'gap_follower_params.yaml'
     )
-
+    
+    gap_follower_node = Node(
+        package='gap_follower',
+        executable='gap_follower_node',
+        name='gap_follower_node',
+        output='screen',
+        parameters=[params_file]
+    )
+    
+    path_follower_node = Node(
+        package='path_follower',
+        executable='path_follower_node',
+        name='path_follower_node',
+        output='screen'
+    )
+    
     return LaunchDescription([
-        Node(
-            package='gap_follower',
-            executable='path_follower_node', 
-            name='path_follower_node',
-            output='screen',
-            parameters=[params_file]
-        )
+        #gap_follower node
+        #path_follower_node
     ])
