@@ -16,6 +16,7 @@ slam_toolbox:
     use_map_saver: true
     mode: localization
     map_file_name: test_map
+    map_start_pose: [0.0, 0.0, 0.0]
 
     debug_logging: false
     throttle_scans: 3
@@ -28,7 +29,7 @@ slam_toolbox:
     transform_timeout: 0.35
     tf_buffer_duration: 30.0
     stack_size_to_use: 40000000
-    enable_interactive_mode: false # FOR TESTING, NOT NEEDED FOR RACING
+    enable_interactive_mode: true # FOR TESTING, NOT NEEDED FOR RACING
 
     # General Parameters
     update_rate: 5.0
@@ -41,7 +42,7 @@ slam_toolbox:
     link_match_minimum_response_fine: 0.12
     link_scan_maximum_distance: 1.0
     loop_search_maximum_distance: 3.5
-    do_loop_closing: true
+    do_loop_closing: false
     loop_match_minimum_chain_size: 6
     loop_match_maximum_variance_coarse: 2.5
     loop_match_minimum_response_coarse: 0.45
