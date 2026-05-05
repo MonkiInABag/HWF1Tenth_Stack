@@ -6,13 +6,12 @@ import os
 
 def generate_launch_description():
 
-    # Path to params file (you can keep this even if not used yet)
     params_file = os.path.join(
         get_package_share_directory('gap_follower'),
         'config',
         'gap_follower_params.yaml'
     )
-    
+
     gap_follower_node = Node(
         package='gap_follower',
         executable='gap_follower_node',
@@ -20,15 +19,17 @@ def generate_launch_description():
         output='screen',
         parameters=[params_file]
     )
-    
+
     path_follower_node = Node(
-        package='path_follower',
+        package='gap_follower',
         executable='path_follower_node',
         name='path_follower_node',
-        output='screen'
+        output='screen',
+        parameters=[params_file]
     )
-    
+
     return LaunchDescription([
-        #gap_follower node
-        #path_follower_node
+        # Uncomment one of these two lines depending on which planner you want.
+        # gap_follower_node,
+        path_follower_node,
     ])

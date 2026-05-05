@@ -4,14 +4,17 @@
   <version>0.0.0</version>
   <description>Gap follower local planner package</description>
 
-  <maintainer email="your_email@example.com">ethan</maintainer>
+  <maintainer email="noreply@example.com">team</maintainer>
   <license>TODO</license>
 
   <buildtool_depend>ament_python</buildtool_depend>
 
   <depend>rclpy</depend>
   <depend>sensor_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>geometry_msgs</depend>
   <depend>ackermann_msgs</depend>
+  <depend>tf2_ros</depend>
 
   <exec_depend>python3-numpy</exec_depend>
 
