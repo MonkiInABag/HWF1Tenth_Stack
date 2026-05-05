@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
@@ -8,13 +9,29 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 
+def find_default_posegraph():
+    search_roots = []
+    env_workspace = os.environ.get("HWF_WORKSPACE")
+    if env_workspace:
+        search_roots.append(Path(env_workspace))
+
+    launch_path = Path(__file__).resolve()
+    search_roots.extend([Path.cwd(), *launch_path.parents])
+
+    for root in search_roots:
+        candidate = root / "test_map.posegraph"
+        if candidate.exists():
+            return str(root / "test_map")
+
+    return str(Path.cwd() / "test_map")
+
+
 def generate_launch_description():
     gap_share = get_package_share_directory("gap_follower")
     stack_share = get_package_share_directory("f1tenth_stack")
     planner_share = get_package_share_directory("global_planner")
 
-    workspace_root = "/home/ethan/ros2_ws/src/HWF1Tenth_Stack"
-    default_posegraph = os.path.join(workspace_root, "test_map")
+    default_posegraph = find_default_posegraph()
 
     fake_vehicle_params = os.path.join(gap_share, "sim", "test_map_fake_vehicle_sim.yaml")
     path_follower_params = os.path.join(gap_share, "config", "gap_follower_params.yaml")
