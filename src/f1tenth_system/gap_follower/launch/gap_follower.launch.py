@@ -29,7 +29,6 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        # Uncomment one of these two lines depending on which planner you want.
         # gap_follower_node,
         path_follower_node,
     ])

@@ -295,6 +295,7 @@ class PathFollower(Node):
         return True
 
     def control_loop(self):
+        # Checks for valid global path
         if len(self.path_points) < 2:
             self.get_logger().warn(
                 f"Waiting for a usable global path on {self.path_topic}",
@@ -302,7 +303,7 @@ class PathFollower(Node):
             )
             self.publish_drive(0.0, 0.0)
             return
-
+        # Checks for valid pose
         if not self.update_pose():
             self.get_logger().warn(
                 f"Waiting for pose in path frame '{self.path_frame or self.expected_path_frame}'",
@@ -310,26 +311,29 @@ class PathFollower(Node):
             )
             self.publish_drive(0.0, 0.0)
             return
-
+        # Finds the lookahead point and computes pure pursuit steering
         target_x, target_y, closest_idx = self.find_lookahead_point()
         steering = self.compute_pure_pursuit_steering(target_x, target_y)
-
+        # Checks if pure pursuit can produce valid steering
+        # If not then stop and wait for next cycle check
         if steering is None:
             self.publish_drive(0.0, 0.0)
             return
-
+        # Applies path error correction if enabled
+        # Provides smoother steering 
         if self.enable_path_error_correction:
             steering = self.apply_path_error_correction(steering, closest_idx)
 
         mode = "global"
         boundary_steering = self.compute_boundary_safety_steering()
         blocked, need_avoid = self.path_is_blocked()
-
+        # If boundary safety is triggered - makes avoiding wall top priority
         if boundary_steering is not None:
             blend = max(0.0, min(1.0, self.boundary_steering_blend))
             steering = (1.0 - blend) * steering + blend * boundary_steering
             speed = self.boundary_safety_speed
             mode = "boundary_safety"
+        # If path is blocked or too close then use local planner
         elif self.enable_local_planner and need_avoid:
             local_steering = self.compute_gap_steering()
             if blocked and self.stop_on_blocker:
@@ -352,11 +356,13 @@ class PathFollower(Node):
             steering = (1.0 - blend) * steering + blend * local_steering
             speed = self.local_planner_speed
             mode = "local_blend"
+        # Use pure pursuit - global planner if path is clear
         else:
             speed = self.speed_for_steering(steering)
 
         steering = self.smooth_steering(steering)
-
+        # drops speed if using local planner for safer steering 
+        # only if path is blocked or too close to obstacle
         if mode.startswith("local"):
             speed = min(speed, self.speed_for_steering(steering))
 
@@ -368,11 +374,11 @@ class PathFollower(Node):
         )
 
         self.publish_drive(steering, speed)
-
+    # Finds lookahead point using the path and current pose
+    # Goes along the path from closest point until lookahead distance is reached
     def find_lookahead_point(self):
         closest_idx = self.find_progressive_closest_idx()
 
-        # Walk forward to find lookahead point
         total = 0.0
         target_x, target_y = self.path_points[closest_idx]
         fallback_target = None
@@ -395,16 +401,16 @@ class PathFollower(Node):
             x2, y2 = self.path_points[i2]
 
             total += math.hypot(x2 - x1, y2 - y1)
-
+            # keep searhing until lookahead distance is reached along the path
             if total < self.lookahead_distance:
                 continue
-
+            # If point is too far then skip it - prevents overshooting
             if not self.point_is_near_enough(x2, y2):
                 continue
 
             if fallback_target is None:
                 fallback_target = (x2, y2)
-
+            # Prefer a point in front of car if perfect forward point is not available
             if self.point_is_ahead(x2, y2):
                 target_x, target_y = x2, y2
                 found_forward_target = True
@@ -415,15 +421,20 @@ class PathFollower(Node):
 
         return target_x, target_y, closest_idx
 
+    # Finds closest point on path to the car
+    # Uses a progressive search starting from last closest point for efficiency
+    # Find where the car is on the path without jumping around
     def find_progressive_closest_idx(self):
         best_dist2 = float("inf")
-
+        # Search the entire path if the closest point is invalid or unknown state
         if self.last_closest_idx is None:
             candidates = range(len(self.path_points))
+        # Allow wrap around if a looped track
         elif self.path_wraps:
             start = self.last_closest_idx - self.closest_search_back_points
             stop = self.last_closest_idx + self.closest_search_ahead_points + 1
             candidates = (i % len(self.path_points) for i in range(start, stop))
+        # If not a loop then search forwards and backwards within a window
         else:
             start = max(0, self.last_closest_idx - self.closest_search_back_points)
             stop = min(
@@ -446,19 +457,22 @@ class PathFollower(Node):
 
         self.last_closest_idx = closest_idx
         return closest_idx
-
+    # Transforms point into car local frame
+    # Checks if point is ahead of vehicle
     def point_is_ahead(self, point_x, point_y):
         dx = point_x - self.current_x
         dy = point_y - self.current_y
         local_x = math.cos(self.current_yaw) * dx + math.sin(self.current_yaw) * dy
         return local_x > self.lookahead_min_forward_x
 
+    # Checks target is not too far away 
     def point_is_near_enough(self, point_x, point_y):
         return (
             math.hypot(point_x - self.current_x, point_y - self.current_y)
             <= self.max_lookahead_target_distance
         )
 
+    # Computes pure pursuit steering angle to target point
     def compute_pure_pursuit_steering(self, target_x, target_y):
         dx = target_x - self.current_x
         dy = target_y - self.current_y
@@ -473,6 +487,7 @@ class PathFollower(Node):
         alpha_pp = math.atan2(local_y, local_x)
         return math.atan2(2.0 * self.wheelbase * math.sin(alpha_pp), Ld)
 
+    # Pulls back to centreline if vehicle starts to drift off path
     def apply_path_error_correction(self, steering, closest_idx):
         if len(self.path_points) < 2:
             return steering
@@ -494,16 +509,15 @@ class PathFollower(Node):
             self.crosstrack_softening_speed,
         )
 
-        corrected = (
-            steering
-            + self.heading_error_gain * heading_error
-            + crosstrack_correction
-        )
+        corrected = (steering + self.heading_error_gain * heading_error + crosstrack_correction)
         return max(-self.max_steering_angle, min(self.max_steering_angle, corrected))
 
+    # Avoid weird angle jumps - keeps between -pi and pi
     def normalize_angle(self, angle):
         return (angle + math.pi) % (2.0 * math.pi) - math.pi
 
+    # Checks if there is an obstacle blocking the path in front
+    # If blocked then stop but if avoidable then avoid 
     def path_is_blocked(self):
         if self.latest_scan is None:
             return False, False
@@ -518,6 +532,7 @@ class PathFollower(Node):
         min_front = float(np.min(front_ranges))
         return min_front < self.blocker_distance, min_front < self.avoid_distance
 
+    # Computes steering angle for local planner to find gaps in front of the car
     def compute_gap_steering(self):
         if self.latest_scan is None:
             return None
@@ -550,6 +565,7 @@ class PathFollower(Node):
         best_idx = (best_slice.start + best_slice.stop - 1) // 2
         return float(gap_angles[best_idx])
 
+    # To avoid boundary collision if vehicle gets too close to wall
     def compute_boundary_safety_steering(self):
         if (
             not self.enable_boundary_safety
@@ -576,7 +592,6 @@ class PathFollower(Node):
         escape_steering = min(self.boundary_escape_steering, self.max_steering_angle)
 
         if abs(closest_angle) > math.radians(8.0):
-            # Positive scan angles are left; steer away from the closest wall.
             return -math.copysign(escape_steering, closest_angle)
 
         left_ranges = safety_ranges[safety_angles > 0.0]
