@@ -604,10 +604,13 @@ class PathFollower(Node):
         right_clearance = float(np.median(right_ranges))
         return escape_steering if left_clearance > right_clearance else -escape_steering
 
+    # Function checks if walls are too close  and computes appropriate steering 
     def compute_wall_avoidance_steering(self, ranges, angles, trigger_distance=None):
+        # Do nothing if wall avoidance is off
         if self.wall_avoidance_gain <= 0.0:
             return None
 
+        # Split lidar reading into left and right 
         left_ranges = ranges[angles > 0.0]
         right_ranges = ranges[angles < 0.0]
 
@@ -623,6 +626,7 @@ class PathFollower(Node):
         if min(left_clearance, right_clearance) >= trigger_distance:
             return None
 
+        # Calculates the steering away from the wall based on closeness
         min_range = max(float(self.latest_scan.range_min), 1e-3)
         left_clearance = max(left_clearance, min_range)
         right_clearance = max(right_clearance, min_range)
@@ -631,7 +635,9 @@ class PathFollower(Node):
         )
         return max(-self.max_steering_angle, min(self.max_steering_angle, steering))
 
+    # Converts raw lidar into two arrays of distances and matching angles
     def scan_ranges_and_angles(self):
+        # Turns LiDAR scan into numpy arrays and handles invalid values
         ranges = np.array(self.latest_scan.ranges, dtype=float)
         ranges = np.nan_to_num(
             ranges,
@@ -640,12 +646,14 @@ class PathFollower(Node):
             neginf=0.0
         )
         ranges = np.clip(ranges, 0.0, self.max_scan_distance)
+        # Calculates angles for every LiDAR distance
         angles = (
             self.latest_scan.angle_min
             + np.arange(ranges.size) * self.latest_scan.angle_increment
         )
         return ranges, angles
 
+    # Steer smoothing 
     def smooth_steering(self, steering):
         if abs(steering) < self.steering_deadband:
             steering = 0.0
